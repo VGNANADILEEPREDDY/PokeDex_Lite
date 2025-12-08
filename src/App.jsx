@@ -5,6 +5,7 @@ import TypeFilter from "./components/TypeFilter";
 import PokemonList from "./components/PokemonList";
 import Pagination from "./components/Pagination";
 import PokemonDetailModal from "./components/PokemonDetailModal";
+import Login from "./components/Login";
 
 function App() {
   const [pokemonList, setPokemonList] = useState([]);
@@ -22,21 +23,36 @@ function App() {
 
   const [favorites, setFavorites] = useState([]);
 
-  // ⭐ Modal selected Pokémon
   const [selectedPokemon, setSelectedPokemon] = useState(null);
 
-  // Load favorites from localStorage
+  // ⭐ User auth state
+  const [user, setUser] = useState(null);
+
+  // Load user + favourites from localStorage
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("favorites") || "[]");
-    setFavorites(saved);
+    const savedUser = JSON.parse(localStorage.getItem("user") || "null");
+    if (savedUser) {
+      setUser(savedUser);
+    }
+
+    const savedFavorites = JSON.parse(localStorage.getItem("favorites") || "[]");
+    setFavorites(savedFavorites);
   }, []);
 
-  // Save favorites to localStorage when they change
+  // Save user when changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("user");
+    }
+  }, [user]);
+
+  // Save favorites when changes
   useEffect(() => {
     localStorage.setItem("favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  // Toggle favorite
   const toggleFavorite = (pokemonId) => {
     setFavorites((prev) => {
       if (prev.includes(pokemonId)) {
@@ -77,7 +93,6 @@ function App() {
                 details.sprites?.front_default ||
                 "",
               types: details.types.map((t) => t.type.name),
-              // extra info for modal:
               stats: details.stats.map((s) => ({
                 name: s.stat.name,
                 value: s.base_stat,
@@ -116,30 +131,52 @@ function App() {
     fetchTypes();
   }, []);
 
-  // Search filter
+  // Filters
   const searchFiltered = pokemonList.filter((pokemon) =>
     pokemon.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
   );
 
-  // Type filter
   const filteredPokemon = searchFiltered.filter((pokemon) => {
     if (!selectedType) return true;
     return pokemon.types.includes(selectedType);
   });
 
-  // ⭐ Card click → open modal
   const handleCardClick = (pokemon) => {
     setSelectedPokemon(pokemon);
   };
 
-  // ⭐ Close modal
   const handleCloseModal = () => {
     setSelectedPokemon(null);
   };
 
+  // ⭐ Login handlers
+  const handleLogin = (userInfo) => {
+    setUser(userInfo);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    // (optionally) clear favourites on logout:
+    // setFavorites([]);
+  };
+
+  // ⭐ If not logged in, show login page only
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <div className="app-container">
-      <h1 className="title">Pokedex Lite</h1>
+      {/* Header with user + logout */}
+      <header className="app-header">
+        <h1 className="title">Pokedex Lite</h1>
+        <div className="user-info">
+          <span className="user-email">{user.email}</span>
+          <button className="logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      </header>
 
       <div className="search-section">
         <SearchBar
@@ -178,7 +215,6 @@ function App() {
         />
       </div>
 
-      {/* ⭐ Detail Modal, only when a Pokémon is selected */}
       {selectedPokemon && (
         <PokemonDetailModal
           pokemon={selectedPokemon}
